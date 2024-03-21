@@ -143,3 +143,29 @@ fn cog_check_from_latest_tag_and_commit_range_failure() -> Result<()> {
         ));
     Ok(())
 }
+
+#[sealed_test]
+fn cog_check_from_multiple_latest_tag_and_non_compliant_commits_with_from_latest_tag() -> Result<()>
+{
+    // Arrange
+    git_init()?;
+    git_commit("Initial commit")?; // <-- non-compliant commit should be ignored by `--from-latest-tag`
+    git_commit("non-compliant commit")?; // <-- non-compliant commit should be ignored by `--from-latest-tag`
+    git_commit("fix: a thing")?;
+    git_commit("chore(version): v0.1.0")?;
+    git_tag("v0.1.0")?;
+    git_commit("fix: another thing")?;
+    git_commit("chore(version): v0.1.1")?;
+    git_tag("v0.1.1")?;
+    git_tag("v0.1")?; // <-- this causes `cog check` to fail despite `--from-latest-tag` being set
+    git_commit("feat: a feature")?;
+    git_commit("chore(version): v0.2.0")?;
+    git_tag("v0.2.0")?;
+
+    // configure the tag prefix
+    std::fs::write("cog.toml", r#"tag_prefix = 'v'"#)?;
+
+    // Act
+    Command::cargo_bin("cog")?.arg("check").assert().success();
+    Ok(())
+}
